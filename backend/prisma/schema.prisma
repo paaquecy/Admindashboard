@@ -1,0 +1,359 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String           @id @default(cuid())
+  username          String           @unique
+  email             String           @unique
+  hashedPassword    String
+  firstName         String
+  lastName          String
+  phoneNumber       String?
+  profileImage      String?
+  isActive          Boolean          @default(true)
+  isEmailVerified   Boolean          @default(false)
+  emailVerifiedAt   DateTime?
+  loginAttempts     Int              @default(0)
+  lockedUntil       DateTime?
+  lastLoginAt       DateTime?
+  lastLoginIP       String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Account type and role information
+  accountType       AccountType
+  status            UserStatus       @default(PENDING)
+  approvedAt        DateTime?
+  approvedBy        String?
+  rejectedAt        DateTime?
+  rejectedBy        String?
+  rejectionReason   String?
+  
+  // Additional info based on account type
+  badgeNumber       String?          // For police officers
+  rank              String?          // For police officers
+  station           String?          // For police officers
+  idNumber          String?          // For DVLA officers
+  position          String?          // For DVLA officers
+  department        String?          // For DVLA officers
+  
+  // Relationships
+  role              Role             @relation(fields: [roleId], references: [id])
+  roleId            String
+  vehicles          Vehicle[]        @relation("VehicleOwner")
+  violations        Violation[]      @relation("ViolationOfficer")
+  reports           Report[]         @relation("ReportCreator")
+  auditLogs         AuditLog[]       @relation("AuditUser")
+  sessions          UserSession[]
+  
+  // Tracking fields
+  createdByUser     User?            @relation("UserCreatedBy", fields: [createdBy], references: [id])
+  createdBy         String?
+  usersCreated      User[]           @relation("UserCreatedBy")
+  
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Permissions
+  permissions Permission[]
+  users       User[]
+  
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  resource    String   // e.g., "users", "vehicles", "violations"
+  action      String   // e.g., "create", "read", "update", "delete"
+  createdAt   DateTime @default(now())
+  
+  // Relationships
+  roles       Role[]
+  
+  @@map("permissions")
+}
+
+model Vehicle {
+  id                String      @id @default(cuid())
+  plateNumber       String      @unique
+  make              String
+  model             String
+  year              Int
+  color             String
+  vin               String?     @unique
+  engineNumber      String?
+  registrationDate  DateTime
+  expiryDate        DateTime?
+  status            VehicleStatus @default(ACTIVE)
+  vehicleType       VehicleType
+  fuelType          String?
+  
+  // Owner information
+  owner             User        @relation("VehicleOwner", fields: [ownerId], references: [id])
+  ownerId           String
+  ownerAddress      String
+  ownerCity         String
+  ownerState        String
+  ownerPostalCode   String
+  
+  // Insurance and documentation
+  insuranceNumber   String?
+  insuranceExpiry   DateTime?
+  insuranceProvider String?
+  
+  // System tracking
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  // Relationships
+  violations        Violation[]
+  scanHistory       VehicleScan[]
+  
+  @@map("vehicles")
+}
+
+model Violation {
+  id              String          @id @default(cuid())
+  violationNumber String          @unique @default(cuid())
+  plateNumber     String
+  violationType   ViolationType
+  description     String
+  location        String
+  coordinates     String?         // GPS coordinates
+  fineAmount      Decimal?        @db.Decimal(10, 2)
+  status          ViolationStatus @default(PENDING)
+  
+  // Date and time information
+  violationDate   DateTime
+  dueDate         DateTime?
+  resolvedAt      DateTime?
+  
+  // Evidence and documentation
+  images          String[]        // Array of image URLs
+  videoUrl        String?
+  evidenceNotes   String?
+  
+  // Officer and processing information
+  issuedBy        User?           @relation("ViolationOfficer", fields: [issuedById], references: [id])
+  issuedById      String?
+  processedAt     DateTime?
+  
+  // Payment information
+  paidAmount      Decimal?        @db.Decimal(10, 2)
+  paidAt          DateTime?
+  paymentMethod   String?
+  receiptNumber   String?
+  
+  // System tracking
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  // Relationships
+  vehicle         Vehicle?        @relation(fields: [plateNumber], references: [plateNumber])
+  
+  @@map("violations")
+}
+
+model VehicleScan {
+  id              String    @id @default(cuid())
+  plateNumber     String
+  scanDateTime    DateTime  @default(now())
+  location        String
+  coordinates     String?   // GPS coordinates
+  confidence      Float     // OCR confidence score
+  imageUrl        String
+  
+  // Scanner information
+  cameraId        String?
+  scannerId       String?
+  
+  // Processing results
+  isViolation     Boolean   @default(false)
+  violationTypes  String[]  // Array of detected violation types
+  
+  // System tracking
+  createdAt       DateTime  @default(now())
+  
+  // Relationships
+  vehicle         Vehicle?  @relation(fields: [plateNumber], references: [plateNumber])
+  
+  @@map("vehicle_scans")
+}
+
+model Report {
+  id          String     @id @default(cuid())
+  title       String
+  type        ReportType
+  description String?
+  filePath    String?
+  fileSize    Int?
+  mimeType    String?
+  parameters  Json?      // Store report parameters as JSON
+  
+  // Date range for reports
+  dateFrom    DateTime?
+  dateTo      DateTime?
+  
+  // Status and tracking
+  status      ReportStatus @default(GENERATING)
+  progress    Int          @default(0)
+  
+  // System tracking
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  generatedAt DateTime?
+  
+  // Relationships
+  createdBy   User       @relation("ReportCreator", fields: [createdById], references: [id])
+  createdById String
+  
+  @@map("reports")
+}
+
+model UserSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  isActive  Boolean  @default(true)
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  
+  @@map("user_sessions")
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  action      AuditAction
+  resource    String      // e.g., "user", "vehicle", "violation"
+  resourceId  String?     // ID of the affected resource
+  oldValues   Json?       // Previous values (for updates)
+  newValues   Json?       // New values (for creates/updates)
+  description String?
+  ipAddress   String?
+  userAgent   String?
+  timestamp   DateTime    @default(now())
+  
+  // Relationships
+  user        User?       @relation("AuditUser", fields: [userId], references: [id])
+  userId      String?
+  
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  isPublic    Boolean  @default(false) // Whether the setting can be read by non-admin users
+  updatedAt   DateTime @updatedAt
+  
+  @@map("system_settings")
+}
+
+// Enums
+enum AccountType {
+  POLICE
+  DVLA
+  ADMINISTRATOR
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+  INACTIVE
+}
+
+enum VehicleType {
+  CAR
+  MOTORCYCLE
+  TRUCK
+  BUS
+  VAN
+  TRAILER
+  OTHER
+}
+
+enum VehicleStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  STOLEN
+  IMPOUNDED
+}
+
+enum ViolationType {
+  SPEEDING
+  PARKING
+  RED_LIGHT
+  ILLEGAL_TURN
+  NO_INSURANCE
+  EXPIRED_REGISTRATION
+  RECKLESS_DRIVING
+  DUI
+  OTHER
+}
+
+enum ViolationStatus {
+  PENDING
+  CONFIRMED
+  DISPUTED
+  RESOLVED
+  DISMISSED
+  PAID
+}
+
+enum ReportType {
+  VIOLATION_SUMMARY
+  VEHICLE_REGISTRY
+  USER_ACTIVITY
+  DAILY_SCAN
+  QUARTERLY_SUMMARY
+  PERFORMANCE_METRICS
+  AUDIT_TRAIL
+}
+
+enum ReportStatus {
+  GENERATING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  APPROVE
+  REJECT
+  EXPORT
+}
