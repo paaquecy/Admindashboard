@@ -19,7 +19,7 @@ import AddNewRole from './components/AddNewRole';
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
-  const [activeItem, setActiveItem] = useState('violation-management');
+  const [activeItem, setActiveItem] = useState('overview');
   const [darkMode, setDarkMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterQuery, setFilterQuery] = useState('');
