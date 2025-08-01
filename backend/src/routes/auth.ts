@@ -18,6 +18,12 @@ const loginValidation = [
     .withMessage('Password is required')
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters long'),
+  body('twoFactorToken')
+    .optional()
+    .isLength({ min: 6, max: 6 })
+    .withMessage('Two-factor token must be 6 digits')
+    .isNumeric()
+    .withMessage('Two-factor token must be numeric'),
 ];
 
 const registerValidation = [
@@ -94,42 +100,96 @@ const changePasswordValidation = [
     }),
 ];
 
-const forgotPasswordValidation = [
-  body('email')
-    .isEmail()
-    .withMessage('Valid email is required')
-    .normalizeEmail(),
+const twoFactorValidation = [
+  body('enabled')
+    .isBoolean()
+    .withMessage('Enabled must be a boolean value'),
+  body('token')
+    .optional()
+    .isLength({ min: 6, max: 6 })
+    .withMessage('Token must be 6 digits')
+    .isNumeric()
+    .withMessage('Token must be numeric'),
 ];
 
-const resetPasswordValidation = [
-  body('token')
+const refreshTokenValidation = [
+  body('refreshToken')
     .notEmpty()
-    .withMessage('Reset token is required'),
+    .withMessage('Refresh token is required'),
+];
+
+// Authentication routes
+router.post('/login', 
+  loginValidation, 
+  validateRequest, 
+  authController.login
+);
+
+router.post('/register', 
+  registerValidation, 
+  validateRequest, 
+  authController.register
+);
+
+router.post('/logout', 
+  authenticate, 
+  authController.logout
+);
+
+router.post('/refresh', 
+  refreshTokenValidation, 
+  validateRequest, 
+  authController.refreshToken
+);
+
+router.post('/change-password', 
+  authenticate, 
+  changePasswordValidation, 
+  validateRequest, 
+  authController.changePassword
+);
+
+router.post('/two-factor', 
+  authenticate, 
+  twoFactorValidation, 
+  validateRequest, 
+  authController.setupTwoFactor
+);
+
+router.get('/profile', 
+  authenticate, 
+  authController.getProfile
+);
+
+router.put('/profile', 
+  authenticate, 
+  authController.updateProfile
+);
+
+router.post('/forgot-password', 
+  body('email').isEmail().withMessage('Valid email is required'),
+  validateRequest, 
+  authController.forgotPassword
+);
+
+router.post('/reset-password', 
+  body('token').notEmpty().withMessage('Reset token is required'),
   body('newPassword')
     .isLength({ min: 8 })
-    .withMessage('New password must be at least 8 characters long')
+    .withMessage('Password must be at least 8 characters long')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-    .withMessage('New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
-  body('confirmPassword')
-    .custom((value, { req }) => {
-      if (value !== req.body.newPassword) {
-        throw new Error('Password confirmation does not match password');
-      }
-      return true;
-    }),
-];
+    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
+  validateRequest, 
+  authController.resetPassword
+);
 
-// Routes
-router.post('/login', loginValidation, validateRequest, authController.login);
-router.post('/register', registerValidation, validateRequest, authController.register);
-router.post('/logout', authenticate, authController.logout);
-router.post('/refresh', authController.refreshToken);
-router.post('/change-password', authenticate, changePasswordValidation, validateRequest, authController.changePassword);
-router.post('/forgot-password', forgotPasswordValidation, validateRequest, authController.forgotPassword);
-router.post('/reset-password', resetPasswordValidation, validateRequest, authController.resetPassword);
-router.get('/me', authenticate, authController.getProfile);
-router.put('/profile', authenticate, authController.updateProfile);
-router.get('/verify-email/:token', authController.verifyEmail);
-router.post('/resend-verification', authenticate, authController.resendVerification);
+router.get('/verify-email/:token', 
+  authController.verifyEmail
+);
+
+router.post('/resend-verification', 
+  authenticate, 
+  authController.resendVerification
+);
 
 export default router;
