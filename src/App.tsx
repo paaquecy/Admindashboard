@@ -146,7 +146,7 @@ function App() {
 
   const handleLogout = () => {
     setIsLoggedIn(false);
-    setActiveItem('violation-management'); // Reset to default page
+    setActiveItem('overview'); // Reset to default page
     console.log('User logged out');
   };
 
