@@ -1,6 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
+// Prisma schema for Plate Recognition System
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,6 +7,10 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ================================
+// USER MANAGEMENT MODELS
+// ================================
 
 model User {
   id                String           @id @default(cuid())
@@ -29,7 +31,7 @@ model User {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   
-  // Account type and role information
+  // Account type and status
   accountType       AccountType
   status            UserStatus       @default(PENDING)
   approvedAt        DateTime?
@@ -38,7 +40,12 @@ model User {
   rejectedBy        String?
   rejectionReason   String?
   
-  // Additional info based on account type
+  // Two-Factor Authentication
+  twoFactorEnabled  Boolean          @default(false)
+  twoFactorSecret   String?
+  backupCodes       String[]
+  
+  // Role-specific information
   badgeNumber       String?          // For police officers
   rank              String?          // For police officers
   station           String?          // For police officers
@@ -54,11 +61,16 @@ model User {
   reports           Report[]         @relation("ReportCreator")
   auditLogs         AuditLog[]       @relation("AuditUser")
   sessions          UserSession[]
+  notifications     Notification[]
   
-  // Tracking fields
+  // User creation tracking
   createdByUser     User?            @relation("UserCreatedBy", fields: [createdBy], references: [id])
   createdBy         String?
   usersCreated      User[]           @relation("UserCreatedBy")
+  
+  // Approval tracking
+  approvedByUser    User?            @relation("UserApprovedBy", fields: [approvedBy], references: [id])
+  usersApproved     User[]           @relation("UserApprovedBy")
   
   @@map("users")
 }
@@ -68,10 +80,11 @@ model Role {
   name        String   @unique
   description String?
   isActive    Boolean  @default(true)
+  isSystem    Boolean  @default(false) // System roles cannot be deleted
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
-  // Permissions
+  // Relationships
   permissions Permission[]
   users       User[]
   
@@ -91,6 +104,10 @@ model Permission {
   
   @@map("permissions")
 }
+
+// ================================
+// VEHICLE MANAGEMENT MODELS
+// ================================
 
 model Vehicle {
   id                String      @id @default(cuid())
@@ -114,11 +131,14 @@ model Vehicle {
   ownerCity         String
   ownerState        String
   ownerPostalCode   String
+  ownerCountry      String      @default("UK")
   
   // Insurance and documentation
   insuranceNumber   String?
   insuranceExpiry   DateTime?
   insuranceProvider String?
+  motExpiry         DateTime?   // MOT test expiry
+  taxExpiry         DateTime?   // Road tax expiry
   
   // System tracking
   createdAt         DateTime    @default(now())
@@ -131,6 +151,10 @@ model Vehicle {
   @@map("vehicles")
 }
 
+// ================================
+// VIOLATION MANAGEMENT MODELS
+// ================================
+
 model Violation {
   id              String          @id @default(cuid())
   violationNumber String          @unique @default(cuid())
@@ -138,7 +162,7 @@ model Violation {
   violationType   ViolationType
   description     String
   location        String
-  coordinates     String?         // GPS coordinates
+  coordinates     String?         // GPS coordinates (lat,lng)
   fineAmount      Decimal?        @db.Decimal(10, 2)
   status          ViolationStatus @default(PENDING)
   
@@ -151,6 +175,7 @@ model Violation {
   images          String[]        // Array of image URLs
   videoUrl        String?
   evidenceNotes   String?
+  witnessDetails  String?
   
   // Officer and processing information
   issuedBy        User?           @relation("ViolationOfficer", fields: [issuedById], references: [id])
@@ -162,6 +187,16 @@ model Violation {
   paidAt          DateTime?
   paymentMethod   String?
   receiptNumber   String?
+  refundAmount    Decimal?        @db.Decimal(10, 2)
+  refundReason    String?
+  
+  // Appeal information
+  appealSubmitted Boolean         @default(false)
+  appealDate      DateTime?
+  appealReason    String?
+  appealStatus    AppealStatus?
+  appealDecision  String?
+  appealDecisionDate DateTime?
   
   // System tracking
   createdAt       DateTime        @default(now())
@@ -173,22 +208,35 @@ model Violation {
   @@map("violations")
 }
 
+// ================================
+// PLATE RECOGNITION MODELS
+// ================================
+
 model VehicleScan {
   id              String    @id @default(cuid())
   plateNumber     String
   scanDateTime    DateTime  @default(now())
   location        String
   coordinates     String?   // GPS coordinates
-  confidence      Float     // OCR confidence score
+  confidence      Float     // OCR confidence score (0-1)
   imageUrl        String
+  processedImageUrl String?
   
   // Scanner information
   cameraId        String?
   scannerId       String?
+  scannerType     String?   // e.g., "mobile", "fixed", "handheld"
   
   // Processing results
   isViolation     Boolean   @default(false)
   violationTypes  String[]  // Array of detected violation types
+  processingTime  Int?      // Processing time in milliseconds
+  
+  // Quality metrics
+  imageQuality    String?   // e.g., "excellent", "good", "fair", "poor"
+  plateVisible    Boolean   @default(true)
+  weatherConditions String? // e.g., "clear", "rain", "fog"
+  timeOfDay       String?   // e.g., "day", "night", "dawn", "dusk"
   
   // System tracking
   createdAt       DateTime  @default(now())
@@ -198,6 +246,10 @@ model VehicleScan {
   
   @@map("vehicle_scans")
 }
+
+// ================================
+// REPORTING MODELS
+// ================================
 
 model Report {
   id          String     @id @default(cuid())
@@ -216,11 +268,13 @@ model Report {
   // Status and tracking
   status      ReportStatus @default(GENERATING)
   progress    Int          @default(0)
+  errorMessage String?
   
   // System tracking
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   generatedAt DateTime?
+  expiresAt   DateTime?  // Auto-cleanup date
   
   // Relationships
   createdBy   User       @relation("ReportCreator", fields: [createdById], references: [id])
@@ -229,14 +283,23 @@ model Report {
   @@map("reports")
 }
 
+// ================================
+// SESSION MANAGEMENT MODELS
+// ================================
+
 model UserSession {
   id        String   @id @default(cuid())
   token     String   @unique
+  refreshToken String? @unique
   expiresAt DateTime
+  refreshExpiresAt DateTime?
   isActive  Boolean  @default(true)
   ipAddress String?
   userAgent String?
+  deviceInfo Json?   // Store device information
+  location  String?  // Geographic location
   createdAt DateTime @default(now())
+  lastActivity DateTime @default(now())
   
   // Relationships
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -244,6 +307,10 @@ model UserSession {
   
   @@map("user_sessions")
 }
+
+// ================================
+// AUDIT AND LOGGING MODELS
+// ================================
 
 model AuditLog {
   id          String      @id @default(cuid())
@@ -255,7 +322,12 @@ model AuditLog {
   description String?
   ipAddress   String?
   userAgent   String?
+  location    String?     // Geographic location
   timestamp   DateTime    @default(now())
+  
+  // Risk assessment
+  riskLevel   RiskLevel   @default(LOW)
+  suspicious  Boolean     @default(false)
   
   // Relationships
   user        User?       @relation("AuditUser", fields: [userId], references: [id])
@@ -264,18 +336,71 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// ================================
+// SYSTEM MANAGEMENT MODELS
+// ================================
+
 model SystemSetting {
   id          String   @id @default(cuid())
   key         String   @unique
   value       String
   description String?
+  category    String?  // e.g., "security", "email", "appearance"
   isPublic    Boolean  @default(false) // Whether the setting can be read by non-admin users
+  isEncrypted Boolean  @default(false) // Whether the value is encrypted
+  validationRegex String? // Regex for value validation
+  createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
   @@map("system_settings")
 }
 
-// Enums
+model Notification {
+  id          String           @id @default(cuid())
+  type        NotificationType
+  title       String
+  message     String
+  data        Json?            // Additional notification data
+  isRead      Boolean          @default(false)
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+  expiresAt   DateTime?
+  
+  // Relationships
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  
+  @@map("notifications")
+}
+
+model SystemHealth {
+  id              String   @id @default(cuid())
+  service         String   // e.g., "database", "redis", "email", "ocr"
+  status          String   // e.g., "healthy", "degraded", "down"
+  responseTime    Int?     // Response time in milliseconds
+  errorMessage    String?
+  lastChecked     DateTime @default(now())
+  
+  @@map("system_health")
+}
+
+model BackupLog {
+  id          String      @id @default(cuid())
+  type        BackupType
+  filePath    String
+  fileSize    Int
+  status      BackupStatus
+  startedAt   DateTime    @default(now())
+  completedAt DateTime?
+  errorMessage String?
+  
+  @@map("backup_logs")
+}
+
+// ================================
+// ENUMS
+// ================================
+
 enum AccountType {
   POLICE
   DVLA
@@ -297,6 +422,7 @@ enum VehicleType {
   BUS
   VAN
   TRAILER
+  BICYCLE
   OTHER
 }
 
@@ -306,6 +432,7 @@ enum VehicleStatus {
   SUSPENDED
   STOLEN
   IMPOUNDED
+  SCRAPPED
 }
 
 enum ViolationType {
@@ -317,6 +444,10 @@ enum ViolationType {
   EXPIRED_REGISTRATION
   RECKLESS_DRIVING
   DUI
+  MOBILE_PHONE
+  SEATBELT
+  EMISSIONS
+  OVERWEIGHT
   OTHER
 }
 
@@ -327,6 +458,14 @@ enum ViolationStatus {
   RESOLVED
   DISMISSED
   PAID
+  OVERDUE
+}
+
+enum AppealStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
 }
 
 enum ReportType {
@@ -334,9 +473,14 @@ enum ReportType {
   VEHICLE_REGISTRY
   USER_ACTIVITY
   DAILY_SCAN
+  WEEKLY_SUMMARY
+  MONTHLY_SUMMARY
   QUARTERLY_SUMMARY
+  ANNUAL_SUMMARY
   PERFORMANCE_METRICS
   AUDIT_TRAIL
+  FINANCIAL_REPORT
+  COMPLIANCE_REPORT
 }
 
 enum ReportStatus {
@@ -344,6 +488,7 @@ enum ReportStatus {
   COMPLETED
   FAILED
   CANCELLED
+  EXPIRED
 }
 
 enum AuditAction {
@@ -356,4 +501,41 @@ enum AuditAction {
   APPROVE
   REJECT
   EXPORT
+  BACKUP
+  RESTORE
+  SCAN
+  PAYMENT
+  APPEAL
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NotificationType {
+  USER_REGISTRATION
+  VIOLATION_CREATED
+  PAYMENT_RECEIVED
+  APPEAL_SUBMITTED
+  SYSTEM_ALERT
+  SECURITY_WARNING
+  REPORT_READY
+  ACCOUNT_LOCKED
+  PASSWORD_CHANGED
+}
+
+enum BackupType {
+  FULL
+  INCREMENTAL
+  LOGS_ONLY
+}
+
+enum BackupStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
 }
