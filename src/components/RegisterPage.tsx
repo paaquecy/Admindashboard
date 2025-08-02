@@ -211,7 +211,8 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onBackToLogin, onRegisterSu
         lastName: formData.lastName,
         email: formData.email,
         telephone: formData.telephone,
-        ...(selectedAccountType === 'police' 
+        password: formData.password,
+        ...(selectedAccountType === 'police'
           ? {
               badgeNumber: formData.badgeNumber,
               rank: formData.rank,
