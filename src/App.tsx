@@ -141,7 +141,7 @@ function App() {
       role: registrationData.accountType === 'police' ? 'Police Officer' : 'DVLA Officer',
       requestDate: new Date().toISOString().split('T')[0],
       accountType: registrationData.accountType,
-      additionalInfo: registrationData.accountType === 'police' 
+      additionalInfo: registrationData.accountType === 'police'
         ? {
             badgeNumber: registrationData.badgeNumber,
             rank: registrationData.rank,
@@ -150,9 +150,16 @@ function App() {
         : {
             idNumber: registrationData.idNumber,
             position: registrationData.position
-          }
+          },
+      // Store the credentials for later approval
+      credentials: {
+        username: registrationData.email,
+        password: registrationData.password,
+        firstName: registrationData.firstName,
+        lastName: registrationData.lastName
+      }
     };
-    
+
     setPendingApprovals(prev => [...prev, newApproval]);
     console.log('New registration added to pending approvals:', newApproval);
   };
