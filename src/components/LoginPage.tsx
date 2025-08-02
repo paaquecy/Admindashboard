@@ -33,7 +33,7 @@ interface LoginPageProps {
   }>;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onRegister }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onRegister, approvedUsers, pendingApprovals }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
