@@ -22,6 +22,7 @@ interface PendingApprovalsTableProps {
   statusFilter: string;
   approvals: PendingApproval[];
   setApprovals: (approvals: PendingApproval[]) => void;
+  onUserApproval?: (userId: string, action: 'approve' | 'reject') => void;
 }
 
 const PendingApprovalsTable: React.FC<PendingApprovalsTableProps> = ({
