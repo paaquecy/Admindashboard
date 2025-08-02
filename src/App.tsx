@@ -53,6 +53,19 @@ function App() {
       }
     }
   ]);
+
+  // Track approved users who can login
+  const [approvedUsers, setApprovedUsers] = useState([
+    {
+      username: '4231220075',
+      password: 'Wattaddo020',
+      email: 'approved@dvla.com',
+      firstName: 'Approved',
+      lastName: 'User',
+      role: 'DVLA Officer',
+      accountType: 'dvla'
+    }
+  ]);
   
   // Violation management specific filters
   const [plateNumberFilter, setPlateNumberFilter] = useState('');
