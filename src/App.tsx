@@ -170,6 +170,34 @@ function App() {
     console.log('User logged out');
   };
 
+  const handleUserApproval = (userId: string, action: 'approve' | 'reject') => {
+    const userToProcess = pendingApprovals.find(user => user.id === userId);
+
+    if (!userToProcess) return;
+
+    if (action === 'approve' && userToProcess.credentials) {
+      // Add to approved users
+      const newApprovedUser = {
+        username: userToProcess.credentials.username,
+        password: userToProcess.credentials.password,
+        email: userToProcess.email,
+        firstName: userToProcess.credentials.firstName,
+        lastName: userToProcess.credentials.lastName,
+        role: userToProcess.role,
+        accountType: userToProcess.accountType
+      };
+
+      setApprovedUsers(prev => [...prev, newApprovedUser]);
+      console.log('User approved and added to approved users:', newApprovedUser);
+    }
+
+    // Remove from pending approvals
+    setPendingApprovals(prev => prev.filter(user => user.id !== userId));
+
+    const actionText = action === 'approve' ? 'approved' : 'rejected';
+    console.log(`User ${userToProcess.userName} has been ${actionText}`);
+  };
+
   const getPageTitle = () => {
     switch (activeItem) {
       case 'overview':
