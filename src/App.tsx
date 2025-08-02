@@ -209,9 +209,11 @@ function App() {
       );
     }
     return (
-      <LoginPage 
-        onLogin={handleLogin} 
+      <LoginPage
+        onLogin={handleLogin}
         onRegister={handleShowRegister}
+        approvedUsers={approvedUsers}
+        pendingApprovals={pendingApprovals}
       />
     );
   }
