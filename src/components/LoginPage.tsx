@@ -13,6 +13,24 @@ import {
 interface LoginPageProps {
   onLogin: () => void;
   onRegister: () => void;
+  approvedUsers: Array<{
+    username: string;
+    password: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    accountType: string;
+  }>;
+  pendingApprovals: Array<{
+    id: string;
+    userName: string;
+    email: string;
+    credentials?: {
+      username: string;
+      password: string;
+    };
+  }>;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onRegister }) => {
