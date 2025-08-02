@@ -19,7 +19,7 @@ import AddNewRole from './components/AddNewRole';
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
-  const [activeItem, setActiveItem] = useState('violation-management');
+  const [activeItem, setActiveItem] = useState('overview');
   const [darkMode, setDarkMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterQuery, setFilterQuery] = useState('');
@@ -51,6 +51,19 @@ function App() {
         idNumber: 'DVLA001',
         position: 'Registration Officer'
       }
+    }
+  ]);
+
+  // Track approved users who can login
+  const [approvedUsers, setApprovedUsers] = useState([
+    {
+      username: '4231220075',
+      password: 'Wattaddo020',
+      email: 'approved@dvla.com',
+      firstName: 'Approved',
+      lastName: 'User',
+      role: 'DVLA Officer',
+      accountType: 'dvla'
     }
   ]);
   
@@ -128,7 +141,7 @@ function App() {
       role: registrationData.accountType === 'police' ? 'Police Officer' : 'DVLA Officer',
       requestDate: new Date().toISOString().split('T')[0],
       accountType: registrationData.accountType,
-      additionalInfo: registrationData.accountType === 'police' 
+      additionalInfo: registrationData.accountType === 'police'
         ? {
             badgeNumber: registrationData.badgeNumber,
             rank: registrationData.rank,
@@ -137,17 +150,52 @@ function App() {
         : {
             idNumber: registrationData.idNumber,
             position: registrationData.position
-          }
+          },
+      // Store the credentials for later approval
+      credentials: {
+        username: registrationData.email,
+        password: registrationData.password,
+        firstName: registrationData.firstName,
+        lastName: registrationData.lastName
+      }
     };
-    
+
     setPendingApprovals(prev => [...prev, newApproval]);
     console.log('New registration added to pending approvals:', newApproval);
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
-    setActiveItem('violation-management'); // Reset to default page
+    setActiveItem('overview'); // Reset to default page
     console.log('User logged out');
+  };
+
+  const handleUserApproval = (userId: string, action: 'approve' | 'reject') => {
+    const userToProcess = pendingApprovals.find(user => user.id === userId);
+
+    if (!userToProcess) return;
+
+    if (action === 'approve' && userToProcess.credentials) {
+      // Add to approved users
+      const newApprovedUser = {
+        username: userToProcess.credentials.username,
+        password: userToProcess.credentials.password,
+        email: userToProcess.email,
+        firstName: userToProcess.credentials.firstName,
+        lastName: userToProcess.credentials.lastName,
+        role: userToProcess.role,
+        accountType: userToProcess.accountType
+      };
+
+      setApprovedUsers(prev => [...prev, newApprovedUser]);
+      console.log('User approved and added to approved users:', newApprovedUser);
+    }
+
+    // Remove from pending approvals
+    setPendingApprovals(prev => prev.filter(user => user.id !== userId));
+
+    const actionText = action === 'approve' ? 'approved' : 'rejected';
+    console.log(`User ${userToProcess.userName} has been ${actionText}`);
   };
 
   const getPageTitle = () => {
@@ -189,9 +237,11 @@ function App() {
       );
     }
     return (
-      <LoginPage 
-        onLogin={handleLogin} 
+      <LoginPage
+        onLogin={handleLogin}
         onRegister={handleShowRegister}
+        approvedUsers={approvedUsers}
+        pendingApprovals={pendingApprovals}
       />
     );
   }
@@ -208,12 +258,13 @@ function App() {
               onStatusChange={handleStatusChange}
             />
             
-            <PendingApprovalsTable 
+            <PendingApprovalsTable
               searchQuery={searchQuery}
               filterQuery={filterQuery}
               statusFilter={statusFilter}
               approvals={pendingApprovals}
               setApprovals={setPendingApprovals}
+              onUserApproval={handleUserApproval}
             />
           </>
         );
