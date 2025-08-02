@@ -63,37 +63,36 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onRegister, approvedUser
       return;
     }
 
-    // Simulate checking user credentials and approval status
-    if (username === '4231220075' && password === 'Wattaddo020') {
-      console.log('Login successful - credentials validated');
+    // Check if user is in approved users list
+    const approvedUser = approvedUsers.find(user =>
+      (user.username === username || user.email === username) && user.password === password
+    );
+
+    if (approvedUser) {
+      console.log('Login successful - approved user authenticated');
       onLogin();
-    } else {
-      // Simulate different user scenarios
-      const mockUsers = [
-        { username: 'pending_user', status: 'pending' },
-        { username: 'rejected_user', status: 'rejected' },
-        { username: 'approved_user', status: 'approved' }
-      ];
-      
-      const user = mockUsers.find(u => u.username === username);
-      
-      if (user) {
-        switch (user.status) {
-          case 'pending':
-            alert('Your account is pending admin approval. Please wait for approval before logging in.');
-            break;
-          case 'rejected':
-            alert('Your account has been rejected. Please contact the administrator for more information.');
-            break;
-          case 'approved':
-            alert('Invalid password. Please check your credentials.');
-            break;
-        }
+      return;
+    }
+
+    // Check if user is in pending approvals
+    const pendingUser = pendingApprovals.find(user =>
+      user.credentials && (user.credentials.username === username || user.email === username)
+    );
+
+    if (pendingUser) {
+      // Check if password matches for pending user
+      if (pendingUser.credentials && pendingUser.credentials.password === password) {
+        alert('Your account is pending admin approval. Please wait for approval before logging in.');
       } else {
         alert('Invalid credentials. Please check your username and password.');
       }
-      console.log('Login failed - invalid credentials or pending approval');
+      console.log('Login failed - user pending approval or invalid password');
+      return;
     }
+
+    // No user found in approved or pending
+    alert('Invalid credentials. Please check your username and password.');
+    console.log('Login failed - user not found');
   };
 
   const handleRegisterClick = () => {
