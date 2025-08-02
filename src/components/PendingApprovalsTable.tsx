@@ -49,19 +49,31 @@ const PendingApprovalsTable: React.FC<PendingApprovalsTableProps> = ({
 
   const handleApprove = (approval: PendingApproval) => {
     console.log(`Approve clicked for ${approval.userName}`);
-    
-    const additionalDetails = approval.accountType === 'police' 
+
+    const additionalDetails = approval.accountType === 'police'
       ? `Badge: ${approval.additionalInfo.badgeNumber}, Rank: ${approval.additionalInfo.rank}, Station: ${approval.additionalInfo.station}`
       : `ID: ${approval.additionalInfo.idNumber}, Position: ${approval.additionalInfo.position}`;
-    
+
     alert(`Account for ${approval.userName} (${approval.role}) has been approved.\nDetails: ${additionalDetails}\n\nThey can now login to the system.`);
-    setApprovals(prev => prev.filter(a => a.id !== approval.id));
+
+    // Use the approval handler if provided, otherwise fall back to old behavior
+    if (onUserApproval) {
+      onUserApproval(approval.id, 'approve');
+    } else {
+      setApprovals(prev => prev.filter(a => a.id !== approval.id));
+    }
   };
 
   const handleReject = (approval: PendingApproval) => {
     console.log(`Reject clicked for ${approval.userName}`);
     alert(`Account for ${approval.userName} (${approval.role}) has been rejected. They will be notified of the decision.`);
-    setApprovals(prev => prev.filter(a => a.id !== approval.id));
+
+    // Use the approval handler if provided, otherwise fall back to old behavior
+    if (onUserApproval) {
+      onUserApproval(approval.id, 'reject');
+    } else {
+      setApprovals(prev => prev.filter(a => a.id !== approval.id));
+    }
   };
 
   return (
