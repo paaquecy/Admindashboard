@@ -225,7 +225,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onBackToLogin, onRegisterSu
         )
       });
 
-      alert('Account created successfully! Your account is pending admin approval. You will be notified once approved and can then login.');
+      alert('Account created successfully!\n\nYour account is now pending admin approval. You will not be able to login until an administrator approves your account.\n\nPlease wait for approval confirmation before attempting to login.');
       onRegisterSuccess();
     } catch (error) {
       console.error('Account creation failed:', error);
