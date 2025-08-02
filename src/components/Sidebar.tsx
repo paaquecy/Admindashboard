@@ -119,9 +119,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemClick, onLogout, da
           
           <button
             onClick={handleLogout}
-            className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-              darkMode 
-                ? 'text-red-400 bg-red-900/20 hover:bg-red-900/30' 
+            className={`w-full flex px-3 py-2 text-sm font-medium rounded-md transition-colors items-center ${
+              darkMode
+                ? 'text-red-400 bg-red-900/20 hover:bg-red-900/30'
                 : 'text-red-700 bg-red-50 hover:bg-red-100'
             }`}
           >
