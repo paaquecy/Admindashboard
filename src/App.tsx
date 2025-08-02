@@ -258,12 +258,13 @@ function App() {
               onStatusChange={handleStatusChange}
             />
             
-            <PendingApprovalsTable 
+            <PendingApprovalsTable
               searchQuery={searchQuery}
               filterQuery={filterQuery}
               statusFilter={statusFilter}
               approvals={pendingApprovals}
               setApprovals={setPendingApprovals}
+              onUserApproval={handleUserApproval}
             />
           </>
         );
